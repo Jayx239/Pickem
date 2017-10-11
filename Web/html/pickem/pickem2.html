@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html><head>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+		<style>
+input[type='radio'] {
+	display: none;
+}
+  label img.checked {
+	  border-style: inset;
+	  border-width: 2px;
+	  border-color: #47a0d1;
+	  background-color: #47a0d1;
+  }
+
+  table, table thead, table tbody {
+	  border-style: groove;
+	  border-width: 2px;
+	  border-color: rgb(0, 73, 83);
+	  color: silver;
+  }
+
+  tr {
+	  background-color: #004955;
+
+  }
+
+  td {
+	  text-align: center;
+	  min-width: 150px;
+  }
+
+  input[type='submit'] {
+	  margin-top: 15px;
+		  margin-bottom; 100px;
+	  font-size: 24px;
+	  width: 100px;
+	  height: 180px;
+
+  }
+  h1, h2 {
+	  text-align: center;
+  }
+
+  html {
+	  background-image: -webkit-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For Chrome and Safari */
+	  background-image:    -moz-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Fx (3.6 to 15) */
+	  background-image:     -ms-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For pre-releases of IE 10*/
+	  background-image:      -o-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Opera (11.1 to 12.0) */
+	  background-image:         linear-gradient(to right, #a8a8a8, #e8e8e8, #fff); /* Standard syntax; must be last */
+	  color:transparent;
+	  -webkit-background-clip: text;
+	  background-clip: text;
+  }
+
+  table, button[type='submit']{
+	  margin-left: 25%;
+	  margin-right: 25%
+  }
+
+  h1, h2 {
+	  color: #000000;
+  }
+
+  textarea{
+	  min-width: 300px;
+	  min-height: 100px;
+	  margin-left: 25%;
+  }
+		</style>
+		<script>
+var cachedTables = [];
+
+$(document).ready(function(){
+
+	$("label").click(function(){
+		$(this).children("img").addClass("checked");
+		$(this).siblings("label").children("img").removeClass("checked");
+
+	});
+	tableLink = "week_1.html";
+	getTable = function(){
+		$.ajax({url:"./" + tableLink}).done(function(data){
+			$("#TableSection").html(data);
+			$("label").click(function(){
+				$(this).children("img").addClass("checked");
+				$(this).siblings("label").children("img").removeClass("checked");
+
+			});
+		});
+
+	};
+	getTable();
+
+	$("#TableForm").submit(function(e){
+		if($("#UserName").val() == "")
+			e.preventDefault();
+		/*var outputSplit = replaceAll($(this).serialize(),"%20", " ").split("&");
+		  var outputString = "";
+		  for(var i=0; i<outputSplit.length; i++) {
+		  var titleVal = outputSplit[i].split("=");
+		  outputString += titleVal[0] + ": " + titleVal[1] + "\n";
+		  }
+		  $("#SelectionOutput").val(outputString);
+		 */
+	})
+
+	$("#WeekSelect").change(function(){
+		saveTable();
+		tableLink = $("select option:selected").attr("tableHtml");
+		if(cachedTables[tableLink])
+			setTable();
+		else
+			getTable();
+
+		updatePicks();
+	});
+
+});
+function saveTable() {
+	cachedTables[tableLink] = $("#TableSection").html();
+}
+function setTable() {
+	$("#TableSection").html(cachedTables[tableLink]);
+	$("label").click(function(){
+		$(this).children("img").addClass("checked");
+		$(this).siblings("label").children("img").removeClass("checked");
+
+	});
+
+}
+function updatePicks() {
+
+	var submitData = new Object();
+	submitData.UserName = $("#UserName").val();
+	submitData.Week = $("option[tableHtml='" + tableLink + "']").val();
+	$.ajax({
+		url: "http://173.49.219.13:3656/GetRecentPicks/",
+		type: "GET",
+		data: submitData,
+		accept: "json"
+	}).done(function(picksData) {
+		for(var key in picksData) {
+			//alert(picksData[key].WinnerKey);
+			var label = $("input[value='" + picksData[key].WinnerKey + "']").parents("label").click();
+			$(label).children("img").addClass("checked");
+			$(label).siblings("label").children("img").removeClass("checked");
+		}
+	});
+}
+
+function replaceAll(inString,replaceString,withString) {
+	var outString = inString;
+	while(outString.indexOf(replaceString) >= 0) {
+		outString = outString.replace(replaceString, withString);
+	}
+	return outString;
+}
+
+		</script>
+		  <title>Pickem! 2017</title></head><body>
+		  <h1>Pickem 2017</h1>
+
+		  <form id="TableForm" action="http://173.49.219.13:3656/SendPicks/" method="post">
+			  <h2><select id="WeekSelect" name="Week">
+					  <option tableHtml="week_1.html" value="1">Week 1</option>
+					  <option tableHtml="week_2.html" value="2">Week 2</option>
+					  <option tableHtml="week_3.html" value="3">Week 3</option>
+					  <option tableHtml="week_4.html" value="4">Week 4</option>
+					  <option tableHtml="week_5.html" value="5">Week 5</option>
+					  <option tableHtml="week_6.html" value="6">Week 6</option>
+					  <option tableHtml="week_7.html" value="7">Week 7</option>
+					  <option tableHtml="week_8.html" value="8">Week 8</option>
+					  <option tableHtml="week_9.html" value="9">Week 9</option>
+					  <option tableHtml="week_10.html" value="10">Week 10</option>
+					  <option tableHtml="week_11.html" value="11">Week 11</option>
+					  <option tableHtml="week_12.html" value="12">Week 12</option>
+					  <option tableHtml="week_13.html" value="13">Week 13</option>
+					  <option tableHtml="week_14.html" value="14">Week 14</option>
+					  <option tableHtml="week_15.html" value="15">Week 15</option>
+					  <option tableHtml="week_16.html" value="16">Week 16</option>
+					  <option tableHtml="week_17.html" value="17">Week 17</option>
+				  </select></h2>
+				  <div id="TableSection">
+
+				  </div>
+				  <label>Username: </label><input type="text" placeholder="User Name" name="UserName" id="UserName"/>
+				  <button type="submit">Send Picks</button>
+		  </form>
+		  <form id="TableForm" action="http://173.49.219.13:3656/SendPicks/" method="post" enctype="text/plain">
+			  <textarea name="Picks" id="SelectionOutput"></textarea>
+			  <button type="submit">Send it!</button>
+		  </form>
+	  </body></html>
+

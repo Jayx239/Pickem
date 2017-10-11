@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html><head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+         
+  <style>
+  input[type='radio'] {
+      display: none;
+  }
+label img.checked {
+    border-style: inset;
+    border-width: 2px;
+    border-color: #47a0d1;
+    background-color: #47a0d1;
+}
+
+table, table thead, table tbody {
+    border-style: groove;
+    border-width: 2px;
+    border-color: rgb(0, 73, 83);
+    color: silver;
+}
+
+tr {
+    background-color: #004955;
+
+}
+
+td {
+    text-align: center;
+    min-width: 150px;
+}
+
+input[type='submit'] {
+    margin-top: 15px;
+    margin-bottom; 100px;
+    font-size: 24px;
+    width: 100px;
+    height: 180px;
+
+}
+h1, h2 {
+    text-align: center;
+}
+
+html {
+    background-image: -webkit-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For Chrome and Safari */
+    background-image:    -moz-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Fx (3.6 to 15) */
+    background-image:     -ms-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For pre-releases of IE 10*/
+    background-image:      -o-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Opera (11.1 to 12.0) */
+    background-image:         linear-gradient(to right, #a8a8a8, #e8e8e8, #fff); /* Standard syntax; must be last */
+    color:transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+table, button[type='submit']{
+    margin-left: 25%;
+    margin-right: 25%
+}
+
+h1, h2 {
+    color: #000000;
+}
+      
+      textarea{
+          min-width: 300px;
+          min-height: 100px;
+          margin-left: 25%;
+      }
+</style>
+    <script>
+    $(document).ready(function(){
+        
+        $("label").click(function(){
+    $(this).children("img").addClass("checked");
+    $(this).siblings("label").children("img").removeClass("checked");
+
+});
+        tableLink = "week_1.html";
+        getTable = function(){
+            $.ajax({url:"./" + tableLink}).done(function(data){
+                $("#TableSection").html(data);
+                $("label").click(function(){
+    $(this).children("img").addClass("checked");
+    $(this).siblings("label").children("img").removeClass("checked");
+
+});
+            });
+            
+        };
+        getTable();
+        
+        $("#TableForm").submit(function(e){
+            e.preventDefault();
+            var outputSplit = replaceAll($(this).serialize(),"%20", " ").split("&");
+            var outputString = "";
+            for(var i=0; i<outputSplit.length; i++) {
+                var titleVal = outputSplit[i].split("=");
+                outputString += titleVal[0] + ": " + titleVal[1] + "\n";
+            }
+            $("#SelectionOutput").val(outputString);
+        })
+        
+        $("#WeekSelect").change(function(){
+            tableLink = $("select option:selected").val();
+            getTable();
+        });
+        
+    });
+        function replaceAll(inString,replaceString,withString) {
+            var outString = inString;
+            while(outString.indexOf(replaceString) >= 0) {
+                outString = outString.replace(replaceString, withString);
+            }
+            return outString;
+        }
+        
+    </script>
+  <title>Pickem! 2017</title></head><body>
+    <h1>Pickem 2017</h1>
+    <h2>
+    <select id="WeekSelect">
+        <option value="week_1.html">Week 1</option>
+        <option value="week_2.html">Week 2</option>
+        <option value="week_3.html">Week 3</option>
+        <option value="week_4.html">Week 4</option>
+        <option value="week_5.html">Week 5</option>
+        <option value="week_6.html">Week 6</option>
+        <option value="week_7.html">Week 7</option>
+        <option value="week_8.html">Week 8</option>
+        <option value="week_9.html">Week 9</option>
+        <option value="week_10.html">Week 10</option>
+        <option value="week_11.html">Week 11</option>
+        <option value="week_12.html">Week 12</option>
+        <option value="week_13.html">Week 13</option>
+        <option value="week_14.html">Week 14</option>
+        <option value="week_15.html">Week 15</option>
+        <option value="week_16.html">Week 16</option>
+        <option value="week_17.html">Week 17</option>
+        <option value="week_18.html">Week 18</option>
+        
+    </select></h2>
+    <form id="TableForm">
+    <div id="TableSection">
+    
+    </div>
+        <button type="submit">Create List</button>
+        </form>
+    <textarea id="SelectionOutput"></textarea>
+    
+    </body></html>
