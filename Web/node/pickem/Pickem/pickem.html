@@ -1,168 +1,41 @@
 <!DOCTYPE html>
 <html><head>
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-
-		<style>
-input[type='radio'] {
-	display: none;
-}
-  label img.checked {
-	  border-style: inset;
-	  border-width: 2px;
-	  border-color: #47a0d1;
-	  background-color: #47a0d1;
-  }
-
-  table, table thead, table tbody {
-	  border-style: groove;
-	  border-width: 2px;
-	  border-color: rgb(0, 73, 83);
-	  color: silver;
-  }
-
-  tr {
-	  background-color: #004955;
-
-  }
-
-  td {
-	  text-align: center;
-	  min-width: 150px;
-  }
-
-  input[type='submit'] {
-	  margin-top: 15px;
-		  margin-bottom; 100px;
-	  font-size: 24px;
-	  width: 100px;
-	  height: 180px;
-
-  }
-  h1, h2 {
-	  text-align: center;
-  }
-
-  html {
-	  background-image: -webkit-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For Chrome and Safari */
-	  background-image:    -moz-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Fx (3.6 to 15) */
-	  background-image:     -ms-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For pre-releases of IE 10*/
-	  background-image:      -o-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Opera (11.1 to 12.0) */
-	  background-image:         linear-gradient(to right, #a8a8a8, #e8e8e8, #fff); /* Standard syntax; must be last */
-	  color:transparent;
-	  -webkit-background-clip: text;
-	  background-clip: text;
-  }
-
-  table, button[type='submit']{
-	  margin-left: 25%;
-	  margin-right: 25%
-  }
-
-  h1, h2 {
-	  color: #000000;
-  }
-
-  textarea{
-	  min-width: 300px;
-	  min-height: 100px;
-	  margin-left: 25%;
-  }
-		</style>
-		<script>
-var cachedTables = [];
-
-$(document).ready(function(){
-
-	$("label").click(function(){
-		$(this).children("img").addClass("checked");
-		$(this).siblings("label").children("img").removeClass("checked");
-
-	});
-	tableLink = "week_1.html";
-	getTable = function(callback){
-		
-		$.ajax({url:"/Pickem", data: {tableFile: tableLink}}).done(function(data){
-			$("#TableSection").html(data);
-			$("label").click(function(){
-				$(this).children("img").addClass("checked");
-				$(this).siblings("label").children("img").removeClass("checked");
-
-			});
-			if(callback)
-				callback();
-		});
-
-	};
-	getTable(updatePicks);
-	$("#TableForm").submit(function(e){
-		/*if($("#UserName").val() == "")
-		  e.preventDefault();*/
-		/*var outputSplit = replaceAll($(this).serialize(),"%20", " ").split("&");
-		  var outputString = "";
-		  for(var i=0; i<outputSplit.length; i++) {
-		  var titleVal = outputSplit[i].split("=");
-		  outputString += titleVal[0] + ": " + titleVal[1] + "\n";
-		  }
-		  $("#SelectionOutput").val(outputString);
-		 */
-	})
-
-	$("#WeekSelect").change(function(){
-		saveTable();
-		tableLink = $("select option:selected").attr("tableHtml");
-		if(cachedTables[tableLink])
-			setTable();
-		else {
-			getTable(updatePicks);
-		}
-	});
-
-});
-function saveTable() {
-	cachedTables[tableLink] = $("#TableSection").html();
-}
-function setTable() {
-	$("#TableSection").html(cachedTables[tableLink]);
-	$("label").click(function(){
-		$(this).children("img").addClass("checked");
-		$(this).siblings("label").children("img").removeClass("checked");
-
-	});
-
-}
-function updatePicks() {
-
-	var submitData = new Object();
-	submitData.Week = $("option[tableHtml='" + tableLink + "']").val();
-	$.ajax({
-		url: "http://173.49.219.13:3656/GetRecentPicks/",
-		type: "POST",
-		data: submitData,
-		accept: "json"
-	}).done(function(picksData) {
-		for(var key in picksData) {
-			//alert(picksData[key].WinnerKey);
-			var label = $("input[value='" + picksData[key].WinnerKey + "']").parents("label").click();
-			$(label).children("img").addClass("checked");
-			$(label).siblings("label").children("img").removeClass("checked");
-		}
-	});
-}
-
-function replaceAll(inString,replaceString,withString) {
-	var outString = inString;
-	while(outString.indexOf(replaceString) >= 0) {
-		outString = outString.replace(replaceString, withString);
-	}
-	return outString;
-}
-
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+    
+    <link rel='stylesheet' href='../css/radiopi.css'/>
+		<script src='../js/pickem.js'>
 		</script>
-		  <a href='/Logout/' style="float: right;" >Logout</a>
-		  <title>Pickem! 2017</title></head><body>
-		  <h1>Pickem 2017</h1>
+    </head>
+    <body>
+        <header id="navbar">
+        
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+      <a class="navbar-brand" href="/Pickem/">Pickem</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="/Pickem/">Home <span class="sr-only">(current)</span></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/Pickem/">Pick!</a>
+          </li>
+          </ul>
+          <a href="/Logout/">Logout</a>
+      </div>
+    </nav>
+        </header>
+        <div class="container">
+            <div class="body">
+    	  <title>Pickem! 2017</title>
+		  <h1 class="col-xs-12">Pickem 2017</h1>
 		  <form id="TableForm" action="http://173.49.219.13:3656/SendPicks/" method="post">
-			  <h2><select id="WeekSelect" name="Week">
+			  <h2 class="col-xs-12"><select id="WeekSelect" name="Week">
 					  <option tableHtml="week_1.html" value="1">Week 1</option>
 					  <option tableHtml="week_2.html" value="2">Week 2</option>
 					  <option tableHtml="week_3.html" value="3">Week 3</option>
@@ -181,12 +54,13 @@ function replaceAll(inString,replaceString,withString) {
 					  <option tableHtml="week_16.html" value="16">Week 16</option>
 					  <option tableHtml="week_17.html" value="17">Week 17</option>
 				  </select></h2>
-				  <div id="TableSection">
+				  <div id="TableSection" class="col-xs-12">
 
 				  </div>
-				  <button type="submit">Send Picks</button>
-		  </form>
-		  <form id="TableForm" action="http://173.49.219.13:3656/SendPicks/" method="post" enctype="text/plain">
-		  </form>
+                
+				  <button type="submit" class="btn col-xs-4 send-btn">Send Picks</button>
+            </form>
+        </div>
+            </div>
 	  </body></html>
 
