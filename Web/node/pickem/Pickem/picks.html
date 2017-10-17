@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script>
+var globalData = []
+function displayData(data) {
+	tableString = "<table><thead><th>User</th><th>Week</th><th>Game</th><th>Pick</th></thead><tbody>"
+		for(var i=0; i<data.length; i++) {
+			tableString +="<tr>"
+
+				tableString+="<td>"
+				tableString += data[i].UserName
+				tableString +="</td>"
+				tableString +="<td>"
+				tableString += data[i].Week
+				tableString += "</td>"
+
+
+				tableString+="<td>"
+				tableString += data[i].GameKey
+				tableString +="</td>"
+				tableString+="<td>"
+				tableString += data[i].WinnerKey
+				tableString +="</td>"
+
+				tableString += "</tr>"	                    
+		}
+	tableString += "</tbody></table>"
+		$("#TableArea").html(tableString)
+}
+
+var baseUrl = "http://173.49.219.13:3656";
+
+function populateUsers(userData) {
+	var selectContents = ""
+	for(var i=0; i<userData.length; i++) {
+		selectContents += "<option value=\"" + userData[i].UserName + "\">" + userData[i].UserName + "</option>"
+	}
+	
+	$("#UserName").html(selectContents)
+}
+
+function getAllUsers() {
+	$.ajax({
+		url: baseUrl + "/GetAllUsers/",
+		type: "GET"
+	}).done(function(usersData) {
+		populateUsers(usersData)
+	});
+}
+
+$(document).ready(function(){
+	getAllUsers()
+	
+	$("#PicksForm").submit(function(e){
+		e.preventDefault();
+		var dataObj = $(this).serializeArray();
+		$.ajax({
+			url: baseUrl + "/GetRecentPicks/",
+			data: dataObj,
+			type: "GET"
+
+		}).done(function(picksData){
+			displayData(picksData); 
+		});
+	})
+})
+
+		</script>
+	</head>
+	<body>
+		<form id="PicksForm">
+			<label for="UserName">User Name<select id="UserName" name="UserName"></select></label>
+			<label for="Latest">Latest Picks<input type="checkbox" name="Latest"/></label>
+			<label for="Week"><select id="WeekSelect" name="Week">
+					<option value="1">Week 1</option>
+					<option value="2">Week 2</option>
+					<option value="3">Week 3</option>
+					<option value="4">Week 4</option>
+					<option value="5">Week 5</option>
+					<option value="6">Week 6</option>
+					<option value="7">Week 7</option>
+					<option value="8">Week 8</option>
+					<option value="9">Week 9</option>
+					<option value="10">Week 10</option>
+					<option value="11">Week 11</option>
+					<option value="12">Week 12</option>
+					<option value="13">Week 13</option>
+					<option value="14">Week 14</option>
+					<option value="15">Week 15</option>
+					<option value="16">Week 16</option>
+					<option value="17">Week 17</option>
+				</select>
+			</label>
+			<button type="submit" id="GetPicksButton">Get Picks</button>
+		</form>
+		<div id="TableArea">
+		</div>
+	</body>
+</html>

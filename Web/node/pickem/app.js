@@ -6,8 +6,38 @@ var bodyParser = require('body-parser')
 var fs = require('fs')
 'use strict'
 var crypto = require('crypto')
+var cookieParser = require('cookie-parser')
+var session = require('client-sessions')
+const winston = require('winston')
+winston.level = 'debug'
+const tsFormat = () => (new Date()).toLocaleTimeString();
+const logger = new (winston.Logger)({
+	transports: [
+		new (winston.transports.File)({
+			name: 'full_log',
+			timestamp: tsFormat,
+			colorize: true,
+			filename: './logs/pickem.log',
+			level: 'info'
+		}),
+		new (winston.transports.File)({
+			name: 'error_log',
+			timestamp: tsFormat,
+			colorize: true,
+			filename: './logs/errors.log',
+			level: 'error'
+		}),
+		// colorize the output to the console
+		new (winston.transports.Console)({
+			name: 'loggerconsole',
+			timestamp: tsFormat,
+			colorize: true
+		})
+	]
+})
 
 app.use(bodyParser.urlencoded({extended: true}))
+app.use(cookieParser())
 port = 3656
 
 var sqlCreds = "";
@@ -21,7 +51,41 @@ fs.readFile('db/creds.conf','utf8', function(err,contents) {
 		user: sqlCreds.user,
 		password: sqlCreds.password
 	})
+	sqlConn.connect(function(err) {
+		if(err)
+			logger.error("Error connecting to database")
+		else
+			logger.info("Connected to database")
+	})
 })
+
+app.use(session({
+	cookieName: 'session',
+	secret: getRandomString(128),
+	duration: 30*60*1000,
+	activeDuration: 5*60*1000,
+	user: ""
+
+}))
+
+app.use(function(req,res,next) {
+
+	if(req.session) {
+		req.user = req.session.user
+		req.sessionToken = req.session.sessionToken
+		res.locals.user = req.session.user
+		if(req.session.sesh && req.session.expiresi && req.session.sessionToken) {
+			var cookieExp = new Date(req.session.expires)
+			if(cookieExp.getTime() < new Date(Date.now()).getTime()) {
+				delete req.session.sesh;
+				delete req.session.sessionToken;
+			}	
+
+		}
+	}
+	next()
+})
+
 // Add headers
 app.use(function (req, res, next) {
 
@@ -43,7 +107,7 @@ app.use(function (req, res, next) {
 });
 
 app.get('/',function(req,res) {
-	res.send('Test');
+	res.redirect('/Login/');
 })
 
 function isValidKey(key) {
@@ -52,136 +116,355 @@ function isValidKey(key) {
 	return false
 }
 
-app.post('/SendPicks/', function(req,res){
-	console.log(req.body);
-	var ipSplit = req.ip.split(":")
-	var ip = ipSplit[ipSplit.length-1]
-	console.log(ip)
+function getIP(req) {
+	var inSplit = req.ip.split(":")
+	var ip = inSplit[inSplit.length-1]
+	return ip
+}
+
+function logError(action,err,user,ip) {
+	var message = action
+	if(user)
+		message += " Username='" + user + "'"
+	if(ip)
+		message += " IPAddress='" + ip + "' "
+	if(err)
+		message += "Error Message - " + err;
+	logger.error(message)
+
+}
+
+app.post('/SendPicks/',requireLogon, function(req,res){
+	var ip = getIP(req)
+	logger.info("/SendPicks/: Initiated: User: " + req.user + " IPAddress: " + ip);
+
 	var timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 	var week = parseInt(req.body.Week)
-	var userName = req.body.UserName
-	console.log(req.body.Week)
+	var userName = req.user
 
-	sqlConn.connect(function(err) {
+	sqlConn.query("USE pickem;",function(err,result){
 		if(err)
-			console.log("Error connecting to db\n")
-		console.log("Connection made")
-		sqlConn.query("USE pickem;")
+			logError('/SendPicks/',err,req.user,ip)
+
 
 		for(var key in req.body){
 			if(!isValidKey(key))
 				continue
 			var gameKey = key
 			var winnerKey = req.body[key]
-			insertPicks(ip,timestamp,week,userName,gameKey, winnerKey);
+			insertPicks(ip,timestamp,week,userName,gameKey, winnerKey)
 		}
-		//res.send("Success")
-
+		res.redirect('/Pickem/')
 	})
-
-	res.send("Error")
 })
+
 function insertPicks(ip, timestamp, week, userName, gameKey, winnerKey) {
 	var sql = 'SELECT * FROM RecentPicks WHERE Week='+ week +' AND UserName=\'' + userName+ '\' AND GameKey=\'' + gameKey + '\';';
 	sqlConn.query(sql,function(err,result) {
 		if(err)
-			console.log("Err: " + err + "\nThrown on SELECT RecentPicks");
+			logError('insertPicks()',err,userName,ip)
 		var existingEntryLen = result.length;
 
 		sql = 'INSERT INTO Picks (Timestamp,IPAddress,Week,UserName,GameKey,WinnerKey) VALUES (\'' + timestamp + '\',\''+ip+'\',\''+week + '\',\'' + userName + '\',\'' + gameKey + '\',\'' + winnerKey + '\');';
-		console.log(sql)
+
 		sqlConn.query(sql, function(err, result) {
 			if(err)
-				console.log("Err: " + err + "\nThrown on Picks insert")
-			console.log("Entry inserted")
+				logError('insertPicks()',err,userName,ip)
 			var pickID;
 			sqlConn.query("SELECT PickID From Picks WHERE UserName='" + userName + "' AND Week=" + week + " AND GameKey='" + gameKey + "' AND WinnerKey='" + winnerKey + "' ORDER BY PickID DESC LIMIT 1;", function(err, result) {
 				if(err)
-					console.log("Err: " + err + "\nError getting recent insert");
-				pickID = result[0].PickID;
-
-				console.log(pickID)
-				if(existingEntryLen > 0) {
-					sql = 'UPDATE RecentPicks SET PickID=\'' + pickID + '\' WHERE GameKey=\'' + gameKey + '\' AND UserName=\'' + userName + '\' AND Week=' + week + ';';
+					logError('insertPicks()',err,userName,ip)
+				else {
+					pickID = result[0].PickID;
+					logger.info('Pick inserted PickID: ' + pickID)
+					if(existingEntryLen > 0) {
+						sql = 'UPDATE RecentPicks SET PickID=\'' + pickID + '\' WHERE GameKey=\'' + gameKey + '\' AND UserName=\'' + userName + '\' AND Week=' + week + ';';
+					}
+					else
+						sql = 'INSERT INTO RecentPicks(PickID,Week,GameKey,UserName) VALUES(' + pickID + ',' + week + ',\'' + gameKey + '\',\'' + userName + '\');'
+					sqlConn.query(sql,function(err,result) {
+						if(err)
+							logError('insertPicks()',err,userName,ip)
+						else
+							logger.info("RecentPick inserted PickID: " + PickID)
+					})
 				}
-				else
-					sql = 'INSERT INTO RecentPicks(PickID,Week,GameKey,UserName) VALUES(' + pickID + ',' + week + ',\'' + gameKey + '\',\'' + userName + '\');'
-				sqlConn.query(sql,function(err,result) {
-					if(err)
-						console.log("Err: " + err + "\nThrown on RecentPicks insert")
-
-				})
 			})
 		})
 	})
 }
 
-app.post("/GetPicks/",function(req,res) {
+app.post("/GetPicks/",requireLogon,function(req,res) {
 
-	var sql = "SELECT * FROM Picks as p WHERE p.UserName = '" +req.body.UserName + "' AND p.Week = " + req.body.Week + ";";
-	//if(req.body.Latest === "on")
-	sql = "CALL user_latest_picks('" + req.body.UserName + "', " +req.body.Week +");"
-	console.log(sql)
-
-	console.log("Sql created\n")
+	var sql = "SELECT * FROM Picks as p WHERE p.UserName = '" +req.user + "' AND p.Week = " + req.body.Week + ";";
+	var ip = getIP(req)
+	logger.log('/GetPicks/: UserName: ' + req.user + 'IPAddress: ' + ip)
 	sqlConn.connect(function(err){
-		//sqlConn.query("USE pickem;")
 		if(err)
-			console.log("Error connection to db\n")
+			logError('/GetPicks/',err,req.user,ip)
 		var sqlResponse = sqlConn.query(sql,function(err,result){
 
 
-			console.log(sqlResponse)
-			if(err)
+			if(err){
+				logError('/GetPicks/',err,req.user,ip)
 				res.send("err")
+			}
 			else
 				res.send(result)
 		})
 	})
 
 })
-app.get("/GetRecentPicks/", function(req,res) {
-	if(req.query.UserName && req.query.Week)
+app.get("/GetRecentPicks/", requireLogon, function(req,res) {
+	if(req.query.UserName && req.query.Week){
 		getRecentPicks(req.query.UserName, req.query.Week, res)
-	console.log(req.query.UserName + req.query.Week);
+		logger.info("/GetRecentPicks: UserName: '" + req.user + "' IPAddress: '" + getIP(req) +"' Search for: Username: '" + req.query.UserName +"' Week: " + req.query.Week + "" )
+	}
+	else
+		logError('/GetRecentPicks/','Invalidy parameters',req.user,getIP(req))
+})
+
+app.post("/GetRecentPicks/", requireLogon, function(req,res) {
+	getRecentPicks(req.user, req.body.Week,res)
 })
 
 function getRecentPicks(UserName, Week, res) {
-	sqlConn.connect(function(err) {
-		if(err)
-			console.log("Error connecting to sql database")
-		sqlConn.query("USE pickem;", function(err,result) {
-			if(err)
-				console.log("Err: " + err + " selecting using table");
-			var sql = "SELECT p.TimeStamp, p.Week, p.PickID, p.GameKey, p.WinnerKey FROM RecentPicks as rp INNER JOIN Picks as p ON p.PickID = rp.PickID WHERE rp.UserName='" + UserName + "' AND rp.Week=" + Week + ";"
-			console.log(sql);
-			sqlConn.query(sql,function(err,result){
-				if(err)
-					console.log("Err: " + err + " on sql query");
 
-				console.log(result);
-				res.send(result);
-				return result;
-			})
+
+	sqlConn.query("USE pickem;", function(err,result) {
+		if(err)
+			logger.error("Err: " + err + " selecting using table");
+		var sql = "SELECT p.TimeStamp, p.Week, p.PickID, p.GameKey, p.WinnerKey, p.UserName FROM RecentPicks as rp INNER JOIN Picks as p ON p.PickID = rp.PickID WHERE rp.UserName='" + UserName + "' AND rp.Week=" + Week + ";"
+		sqlConn.query(sql,function(err,result){
+			if(err)
+				logError('getRecentPicks()',err,UserName)
+
+			logger.info("getRecentPicks: Recent picks retrieved UserName: '" + UserName + "' Week=" + Week)
+			res.send(result);
+			return result;
 		})
 	})
-	return null;
 }
 app.get("/GetAllUsers/", function(req,res) {
 
-	sqlConn.connect(function(err) {
-		sqlConn.query("USE pickem;")
-		var sql = "SELECT DISTINCT UserName FROM Picks;"
-		var sqlResponse = sqlConn.query(sql,function(err,result) {
-			if(err)
-				res.send("err")
-			else
-				res.send(result)
-		})
+	sqlConn.query("USE pickem;")
+	var sql = "SELECT DISTINCT UserName FROM Picks;"
+	logger.info("/GetAllUsers/ - Called by: " + req.user + " IPAddress: " + getIP(req))
+	var sqlResponse = sqlConn.query(sql,function(err,result) {
+		if(err){
+			logError('/GetAllUsers/',err,req.user,getIP(req))
+			res.send("err")
+		}
+		else
+			res.send(result)
 	})
+})
+
+app.get('/Login/',function(req,res) {
+	logger.info("Visitor on Login page - IPAddress: " + getIP(req))
+	res.sendFile('/Login/login.html', {root: __dirname })
+})
+
+app.get('/Register/',function(req,res) {
+	logger.info('Visitor on Register page IPAddress: ' + getIP(req))
+	res.sendFile('/Register/register.html', {root: __dirname })
+})
+
+app.get('/Pickem/Picks/',requireLogon,function(req,res) {
+	logger.info("User viewing picks - UserName: " + req.user + " IPAddress: " + getIP(req))
+	res.sendFile('/Pickem/picks.html', {root: __dirname })
 
 })
 
+app.post("/Register/", function(req,res) {
+	if(!registerUser(req.body)) {
+		logError('/Register/',"Registration Error",req.UserName, getIP(req))
+		res.redirect('/Register/')
+	}
+	else {
+		logger.info("/Register/ : " + req.UserName + " Registered successfully on IPAddress= " + getIP(req))
+		res.redirect('/')
+	}
+})
+
+function registerUser(details) {
+	logger.info("Registering user: UserID: " + details.UserName)
+	sqlConn.query("USE pickem;",function(err,result){
+		if(err)
+			logger.error("Err: " + err + " on selecting db")
+		if(!validatePassword(details.Password,details.PasswordConfirm))
+			return false
+
+		if(!isValidUserName(details.UserName))
+			return false
+		logger.info("Valid username")
+		if(!isValidEmail(details.EmailAddress))
+			return false
+
+		if(isNullOrWhitespace(details.FirstName) || isNullOrWhitespace(details.LastName))
+			return false
+		logger.info("Creds Verified")
+		var sql = "INSERT INTO Users(UserName,PrimaryEmail,FirstName,MiddleName,LastName,BirthDay,BirthMonth,BirthYear) VALUES('" +details.UserName + "','" + details.EmailAddress + "','" + details.FirstName + "','" + details.MiddleName + "','" + details.LastName + "'," + details.BirthDay + "," + details.BirthMonth + "," + details.BirthYear + ");"
+
+		sqlConn.query(sql, function(err,result) {
+			if(err) {
+				logError('registerUser()',err,details.UserName)
+				return false
+			}
+			sql = "SELECT UserID FROM Users WHERE UserName='" + details.UserName + "';"
+			logger.info('User: ' + details.UserName + ' info added')
+			sqlConn.query(sql,function(err,result) {
+				if(err) {
+					logError('registerUser()',err, details.UserName)
+					return false
+				}
+				var creds = saltHashPassword(details.Password)
+
+				sql = "INSERT INTO Credentials(UserID,Salt,Hash) VALUES(" + result[0].UserID + ",'" + creds.salt+ "','" + creds.passwordHash +"');"
+				logger.info('Hashed Credentials')
+				sqlConn.query(sql, function(err,result) {
+					if(err) {
+						logger.error('registerUser()',err, details.UserName)
+						return false
+					}
+					logger.info("Hashed Crendtials added\nSuccessful registration")
+					return true
+				})
+			})
+		})
+
+	})
+}
+
+
+
+function authenticateCredsFromDb(userName,password, req, next) {
+
+	var sql = "SELECT Salt, Hash FROM Credentials AS C INNER JOIN Users AS U ON U.UserID = C.UserID WHERE UserName='" + userName + "';"
+	sqlConn.query(sql,function(err,result) {
+		if(err)
+			logError('authenticateCredsFromDb()', err, req.user, getIP(req))
+		if(result.length == 0)
+			return next(req,false)
+		else {
+			return next(req,validateUserSignOn(password,result[0].Hash, result[0].Salt))
+		}
+
+	})
+}
+
+function validateUserSignOn(userPassword, passwordHash, salt) {
+	var userHashed = sha512(userPassword, salt).passwordHash;
+
+	if(userHashed === passwordHash) {
+		logger.info("Valid creds")
+		return true
+	}
+
+	logError('validateUserSignOn()',"Invalid creds")
+	return false
+}
+
+function isValidEmail(email) {
+	return true
+}
+
+function isValidUserName(userName) {
+	return true
+	sqlConn.query("SELECT * FROM Users WHERE UserName='" + userName+ "';", function(err,result) {
+		if(err)
+			logError('isValidUserName()',err,userName)
+		logger.info(result.length > 0 ? "Invalid UserName" : "Valid username")
+		return !(result.length > 0)
+	})
+}
+
+function isNullOrWhitespace(val) {
+	if(!val)
+		return true
+	if(val === "")
+		return true
+
+	return false
+}
+
+function validatePassword(password,passwordConfirm) {
+	if(password !== passwordConfirm || password === "")
+		return false
+	return true
+}
+
+function isSafeTableFile(tableFile) {
+	if(!tableFile)
+		return false
+	if(tableFile.indexOf('/') > -1 || tableFile.indexOf('\\') > -1)
+		return false
+	return true
+}
+
+app.get('/Pickem/', requireLogon, function(req,res){
+	if(!isNullOrWhitespace(req.query.tableFile)){
+		if(isSafeTableFile(req.query.tableFile)) 
+			res.sendFile('/Pickem/' + req.query.tableFile, {root: __dirname })	
+		else {
+			logError('/Pickem/','Potentially harmful request on query string, tableFile=\'' + req.query.tableFile + '\'')
+			res.sendFile('/Pickem/pickem.html', {root: __dirname })
+		}
+	}
+	else
+		res.sendFile('/Pickem/pickem.html', {root: __dirname })
+
+})
+
+app.get("/Logout/", function(req,res) {
+	var user=req.user;
+	var ip = getIP(req)
+	req.session.reset()
+	logger.info("User Logged Out - Username='" + user + "' IPAddress=" + ip)
+	res.redirect('/')
+
+})
+
+app.post("/Login/",function(req,res) {
+	logger.info('/Login/ - User attempting logon - UserName=\'' + req.body.UserName + '\' IPAddress= ' + getIP(req) )
+	if(!isNullOrWhitespace(req.body.UserName) && !isNullOrWhitespace(req.body.Password)) {	
+
+		sqlConn.query("USE pickem;", function(err,result) {
+			if(err)
+				logError('/Login/', err, req.body.UserName,getIP(req))
+
+			authenticateCredsFromDb(req.body.UserName, req.body.Password, req, function(req,auth) { 
+				if (auth) {
+					req.session.user = req.body.UserName
+
+					req.session.sesh = 'pickem'
+					req.session.sessionToken = getRandomString(32)
+					req.session.expires = (Date.now() + (60*15*1000))
+					logger.info("Logging in: User name=" + req.session.user)
+					req.user = req.body.UserName
+					logger.info('User Authenticated UserName: \'' + req.user + '\' IPAddress: ' + getIP(req))
+					res.redirect('/Pickem/')
+				}
+				else {
+					logError('/Login/','Invalid credentials',req.body.UserName, getIP(req))
+					res.redirect('/')
+				}
+			})
+		})
+	}
+	else {
+		logError('/Login/', 'Invalid credentials', req.body.UserName, getIP(req))
+		res.redirect('/')
+	}
+
+})
+
+function requireLogon(req,res,next) {
+	if(!req.user)
+		res.redirect("/")
+	else
+		next();
+}
 
 /**
  *  * generates random string of characters i.e salt
@@ -210,16 +493,19 @@ var sha512 = function(password, salt){
 	};
 };
 
+function getRandomString(length) { 
+	return crypto.randomBytes(Math.ceil(length/2))
+		.toString('hex') /** convert to hexadecimal format */
+		.slice(0,length);   /** return required number of characters */
+}
+
 function saltHashPassword(userpassword) {
 	var salt = genRandomString(16); /** Gives us salt of length 16 */
 	var passwordData = sha512(userpassword, salt);
-	/*console.log('UserPassword = '+userpassword);
-	    console.log('Passwordhash = '+passwordData.passwordHash);
-	    console.log('nSalt = '+passwordData.salt);*/
 	return passwordData;
 }
 
 app.listen(port, function() {
-	console.log('Pickem Server running on port ' + port + '...\n')
+	winston.info('Pickem Server running on port ' + port + '...\n')
 })
 
