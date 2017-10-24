@@ -7,6 +7,7 @@ var fs = require('fs')
 'use strict'
 var crypto = require('crypto')
 var cookieParser = require('cookie-parser')
+const request = require('request')
 var session = require('client-sessions')
 const winston = require('winston')
 winston.level = 'debug'
@@ -67,6 +68,7 @@ app.use(session({
 	user: ""
 
 }))
+app.use('/public',express.static(__dirname + '/public'))
 
 app.use(function(req,res,next) {
 
@@ -87,25 +89,25 @@ app.use(function(req,res,next) {
 })
 
 // Add headers
-app.use(function (req, res, next) {
+/*app.use(function (req, res, next) {
 
-	// Website you wish to allow to connect
+// Website you wish to allow to connect
 	res.setHeader('Access-Control-Allow-Origin', 'http://173.49.219.13');
 
-	// Request methods you wish to allow
+// Request methods you wish to allow
 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
 
-	// Request headers you wish to allow
+// Request headers you wish to allow
 	res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
 
-	// Set to true if you need the website to include cookies in the requests sent
-	// to the API (e.g. in case you use sessions)
+// Set to true if you need the website to include cookies in the requests sent
+// to the API (e.g. in case you use sessions)
 	res.setHeader('Access-Control-Allow-Credentials', true);
 
-	// Pass to next layer of middleware
+// Pass to next layer of middleware
 	next();
 });
-
+*/
 app.get('/',function(req,res) {
 	res.redirect('/Login/');
 })
@@ -152,13 +154,15 @@ app.post('/SendPicks/',requireLogon, function(req,res){
 				continue
 			var gameKey = key
 			var winnerKey = req.body[key]
-			insertPicks(ip,timestamp,week,userName,gameKey, winnerKey)
+			insertValidGamePick(ip,timestamp,week,userName,gameKey,winnerKey)
+			//insertPicks(ip,timestamp,week,userName,gameKey, winnerKey)
 		}
 		res.redirect('/Pickem/')
 	})
 })
 
 function insertPicks(ip, timestamp, week, userName, gameKey, winnerKey) {
+
 	var sql = 'SELECT * FROM RecentPicks WHERE Week='+ week +' AND UserName=\'' + userName+ '\' AND GameKey=\'' + gameKey + '\';';
 	sqlConn.query(sql,function(err,result) {
 		if(err)
@@ -170,6 +174,8 @@ function insertPicks(ip, timestamp, week, userName, gameKey, winnerKey) {
 		sqlConn.query(sql, function(err, result) {
 			if(err)
 				logError('insertPicks()',err,userName,ip)
+			insertRecentPicks(ip, timestamp, week, userName, gameKey, winnerKey,existingEntryLen)	
+			/*
 			var pickID;
 			sqlConn.query("SELECT PickID From Picks WHERE UserName='" + userName + "' AND Week=" + week + " AND GameKey='" + gameKey + "' AND WinnerKey='" + winnerKey + "' ORDER BY PickID DESC LIMIT 1;", function(err, result) {
 				if(err)
@@ -189,10 +195,34 @@ function insertPicks(ip, timestamp, week, userName, gameKey, winnerKey) {
 							logger.info("RecentPick inserted PickID: " + PickID)
 					})
 				}
-			})
+			})*/
 		})
 	})
 }
+
+function insertRecentPicks(ip, timestamp, week, userName, gameKey, winnerKey,existingEntryLen) {
+	var pickID;
+	sqlConn.query("SELECT PickID From Picks WHERE UserName='" + userName + "' AND Week=" + week + " AND GameKey='" + gameKey + "' AND WinnerKey='" + winnerKey + "' ORDER BY PickID DESC LIMIT 1;", function (err, result) {
+		if (err)
+			logError('insertPicks()', err, userName, ip)
+		else {
+			pickID = result[0].PickID;
+			logger.info('Pick inserted PickID: ' + pickID)
+			if (existingEntryLen > 0) {
+				sql = 'UPDATE RecentPicks SET PickID=\'' + pickID + '\' WHERE GameKey=\'' + gameKey + '\' AND UserName=\'' + userName + '\' AND Week=' + week + ';';
+			} else
+				sql = 'INSERT INTO RecentPicks(PickID,Week,GameKey,UserName) VALUES(' + pickID + ',' + week + ',\'' + gameKey + '\',\'' + userName + '\');'
+			sqlConn.query(sql, function (err, result) {
+				if (err)
+					logError('insertPicks()', err, userName, ip)
+				else
+					logger.info("RecentPick inserted PickID: " + pickID)
+			})
+		}
+	})
+
+}
+
 
 app.post("/GetPicks/",requireLogon,function(req,res) {
 
@@ -458,6 +488,94 @@ app.post("/Login/",function(req,res) {
 	}
 
 })
+
+app.get("/Pickem/Dashboard/",requireLogon,function(req,res) {
+	logger.info("/Dashboard/: Username: '" + req.userName + "' IPAddress: " + getIP(req))
+	res.sendFile('/Pickem/dashboard.html', {root: __dirname })	
+
+
+})
+
+app.get('/Pickem/Results/',function(req,res) {
+	logger.info("/Pickem/Results: Espn results being retreived week=" + req.query.week + " year=" + req.query.date + " IPAddress: " + getIP(req))
+	/*res.redirect(espnAddress)*/
+	getEspnResults(req.query.date,req.query.week,res)
+})
+
+function getEspnResults(year,week,res,callback) {
+	logger.info("getEspnResults() - called")
+	var espnAddress='http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?lang=en&region=us&calendartype=blacklist&limit=100&dates=' + year + '&seasontype=2&week=' + week
+	request.get(espnAddress,(err, resp, body) => {
+		var json = JSON.parse(body)
+		if(res)
+			res.send(json)
+		else if(callback)
+			callback(json)
+		else
+			return json
+	})
+}
+
+app.get("/Pickem/UpdateGameTimes/",function(req,res){
+	/*Disable */
+	res.redirect('/')
+	return
+	logger.info("/Pickem/UpdateGameTimes/ : Username: '" + req.user + "' IPAddress: " + getIP(req))
+	sqlConn.query("USE pickem;",function(err,result){
+		if(err)
+			logError("/Pickem/UpdateGameTinmes/",err,req.user,getIP(req))
+		else
+			for(var i=1; i<18; i++) {
+				getEspnResults(req.query.year,i,null,insertGameTimes)
+
+			}
+	})
+})
+
+function insertGameTimes(json) {
+	for(i=0; i<json.events.length; i++) {
+		var sql = "INSERT INTO GameTimes(Week,GameKey,StartTime) VALUES(" + json.week.number + ",'" + json.events[i].competitions[0].competitors[0].team.location + "-" + json.events[i].competitions[0].competitors[1].team.location + "','" + json.events[i].competitions[0].date +"');";
+		logger.info("Inserting game time: SQL= " + sql)
+		insertGame(sql)
+	}
+}
+
+function insertGame(sql) {
+	sqlConn.query(sql,function(err,result){
+		if(err)
+			logError("insertGame() - sql=" + sql,err)
+		else
+			logger.info("Game time inserted successfully")
+	})
+}
+
+function insertValidGamePick(ip,pickTime,week,userName,gameKey, winnerKey) {
+	sqlConn.query("USE pickem;",function(err,result){
+		if(err)
+			logError("getGamePick()",err)
+		else {
+			var sql = "SELECT * FROM GameTimes WHERE Week=" + week + " AND GameKey='" + gameKey + "';"
+			sqlConn.query(sql,function(err,result) {
+				if(err || result.length == 0)
+					logError("getGamePick()", err)
+				else {
+					var pickDateTime = new Date(pickTime)
+					var gameDateTime = new Date(result[0].StartTime)
+					var millisecondsBeforeStart = 1000*60*30;
+					if(pickDateTime.getTime() < (gameDateTime.getTime() - millisecondsBeforeStart)) {
+						insertPicks(ip, pickTime, week, userName, gameKey, winnerKey)
+						logger.info("insertValidGamePick(): Username: '" + userName + "' IPAddress: " + ip + " PickTime: " + pickTime + " Week: " + week + " gameKey: " + gameKey + " winnerKey: " + winnerKey + " Deadline: " + new Date(gameDateTime.getTime()-millisecondsBeforeStart))
+						return true
+					}
+					else {
+						logError("insertValidGamePick()","Game picked after deadline -Username: '" + userName + "' IPAddress: " + ip + " PickTime: " + pickTime + " Week: " + week + " gameKey: " + gameKey + " winnerKey: " + winnerKey + " deadline clean: " + gameDateTime.getTime() +  " Deadline: " + new Date(gameDateTime.getTime()-millisecondsBeforeStart)) 
+						return false
+					}
+				}
+			})
+		}
+	})
+}
 
 function requireLogon(req,res,next) {
 	if(!req.user)

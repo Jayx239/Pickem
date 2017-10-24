@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script src="/public/js/Json.js"></script>
+		<script>
+		var response = []
+$(document).ready(function() {
+	$.ajax({
+		type: "GET",
+		url: "http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?lang=en&region=us&calendartype=blacklist&limit=100&dates=2016&seasontype=2&week=6"
+	}).done(function(resp) {
+			response = resp;
+		})
+	
+})
+
+function parseResponse() {
+	var keys = $("#keysInput").val().split(".")
+		var result = response[keys[0]];
+	for(var i=1; i<keys.length; i++) {
+			result = result[keys[i]];
+	}
+		$("#result").val(formatJson(JSON.stringify(result)));
+	var resultArrayStr = "----------" + result.length + " Results -------------------\n-----------------";
+			for(var i=0; i<result.length; i++) {
+		resultArrayStr += "result[" + i + "]: -------------\n" + formatJson(JSON.stringify(result[i])) + "\n-----------------";
+	}
+		$("#matches").val(resultArrayStr);
+}
+		</script>
+	</head>
+	<body>
+		<textarea id="result" style="width: 400px; height: 500px;"></textarea>
+		<br><input id='keysInput' type='text'/>
+		<button onclick="parseResponse()">Parse</button>
+			<br>
+			<textarea id="matches" style="width: 400px; height: 500px;"></textarea>
+	</body>
+
+</html>

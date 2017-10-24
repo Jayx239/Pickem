@@ -16,7 +16,14 @@ $(document).ready(function(){
 				$(this).children("img").addClass("checked");
 				$(this).siblings("label").children("img").removeClass("checked");
 
-			});
+			})
+			$("table").addClass("col-xs-12");
+			$("th").each(function(){
+				$(this).addClass("col-xs-12");
+			})
+			$("td").each(function(){
+				$(this).addClass("col-xs-4");
+			})
 			if(callback)
 				callback();
 		});
