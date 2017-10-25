@@ -174,28 +174,7 @@ function insertPicks(ip, timestamp, week, userName, gameKey, winnerKey) {
 		sqlConn.query(sql, function(err, result) {
 			if(err)
 				logError('insertPicks()',err,userName,ip)
-			insertRecentPicks(ip, timestamp, week, userName, gameKey, winnerKey,existingEntryLen)	
-			/*
-			var pickID;
-			sqlConn.query("SELECT PickID From Picks WHERE UserName='" + userName + "' AND Week=" + week + " AND GameKey='" + gameKey + "' AND WinnerKey='" + winnerKey + "' ORDER BY PickID DESC LIMIT 1;", function(err, result) {
-				if(err)
-					logError('insertPicks()',err,userName,ip)
-				else {
-					pickID = result[0].PickID;
-					logger.info('Pick inserted PickID: ' + pickID)
-					if(existingEntryLen > 0) {
-						sql = 'UPDATE RecentPicks SET PickID=\'' + pickID + '\' WHERE GameKey=\'' + gameKey + '\' AND UserName=\'' + userName + '\' AND Week=' + week + ';';
-					}
-					else
-						sql = 'INSERT INTO RecentPicks(PickID,Week,GameKey,UserName) VALUES(' + pickID + ',' + week + ',\'' + gameKey + '\',\'' + userName + '\');'
-					sqlConn.query(sql,function(err,result) {
-						if(err)
-							logError('insertPicks()',err,userName,ip)
-						else
-							logger.info("RecentPick inserted PickID: " + PickID)
-					})
-				}
-			})*/
+			insertRecentPicks(ip, timestamp, week, userName, gameKey, winnerKey,existingEntryLen)
 		})
 	})
 }
@@ -300,8 +279,8 @@ app.get('/Register/',function(req,res) {
 	res.sendFile('/Register/register.html', {root: __dirname })
 })
 
-app.get('/Pickem/Picks/',requireLogon,function(req,res) {
-	logger.info("User viewing picks - UserName: " + req.user + " IPAddress: " + getIP(req))
+app.get('/Pickem/Picks/',requireAdmin,function(req,res) {
+	logger.info("/Pickem/Picks/: User viewing picks - UserName: " + req.user + " IPAddress: " + getIP(req))
 	res.sendFile('/Pickem/picks.html', {root: __dirname })
 
 })
@@ -321,19 +300,26 @@ function registerUser(details) {
 	logger.info("Registering user: UserID: " + details.UserName)
 	sqlConn.query("USE pickem;",function(err,result){
 		if(err)
-			logger.error("Err: " + err + " on selecting db")
+			logError("registerUser() selecting db", err,details.UserName)
 		if(!validatePassword(details.Password,details.PasswordConfirm))
 			return false
 
-		if(!isValidUserName(details.UserName))
+		if(!isValidUserName(details.UserName)) {
+			logger.info("registerUser()", "Invalid username", details.UserName)
 			return false
-		logger.info("Valid username")
-		if(!isValidEmail(details.EmailAddress))
+		}
+		logger.info("registerUser() - Valid username")
+		if(!isValidEmail(details.EmailAddress)) {
+			logError("registerUser()", "invalid email address", details.EmailAddress)	
 			return false
-
-		if(isNullOrWhitespace(details.FirstName) || isNullOrWhitespace(details.LastName))
+		}
+		logger.info("registerUser(): Valid email address")
+		if(isNullOrWhitespace(details.FirstName) || isNullOrWhitespace(details.LastName)){
+			logError("registerUser()","null name","First: " + details.FirstName + " Last: "  + details.LastName);
 			return false
-		logger.info("Creds Verified")
+		}
+		logger.info("registerUser(): Valid name")
+		logger.info("registerUser(): Creds Verified")
 		var sql = "INSERT INTO Users(UserName,PrimaryEmail,FirstName,MiddleName,LastName,BirthDay,BirthMonth,BirthYear) VALUES('" +details.UserName + "','" + details.EmailAddress + "','" + details.FirstName + "','" + details.MiddleName + "','" + details.LastName + "'," + details.BirthDay + "," + details.BirthMonth + "," + details.BirthYear + ");"
 
 		sqlConn.query(sql, function(err,result) {
@@ -354,10 +340,11 @@ function registerUser(details) {
 				logger.info('Hashed Credentials')
 				sqlConn.query(sql, function(err,result) {
 					if(err) {
-						logger.error('registerUser()',err, details.UserName)
+						logError('registerUser()',err, details.UserName)
 						return false
 					}
 					logger.info("Hashed Crendtials added\nSuccessful registration")
+					logger.info("User registered successfully Username: " + details.UserName)
 					return true
 				})
 			})
@@ -582,6 +569,30 @@ function requireLogon(req,res,next) {
 		res.redirect("/")
 	else
 		next();
+}
+
+function requireAdmin(req,res,next) {
+	requireLogon(req,res,function() {
+		sqlConn.query("USE pickem;", function(err,result) {
+			if(err) {
+				logError("requireAdmin()",err,req.user, getIP(req))
+				res.redirect('/Pickem/')
+			}
+			else {
+				var sql = "SELECT * FROM Admins as a INNER JOIN Users as u ON a.UserID = u.UserID WHERE u.UserName='" + req.user + "';"
+				sqlConn.query(sql,function(err,result) {
+					if(err)
+						logError("requireAdmin()",err,req.user,getIP(req))
+					else {
+						if(result && result.length > 0 && result[0].UserName === req.user && result[0].Active == 1)
+							next()
+						else
+							res.redirect("/Pickem/")
+					}
+				})
+			}
+		})
+	})
 }
 
 /**

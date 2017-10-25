@@ -5,47 +5,59 @@
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
 		<script src="jquery-3.2.1.min.js"></script>
 		<style>
-	h1.title {
-		text-align: center;
-	}
+h1.title {
+	text-align: center;
+	color: rgb(0, 73, 83);
+}
 
 	button {
-		
+
 	}
-</style>
-	<script>
-		$(document).ready(function(){
-			$("form[name='LoginForm']").submit(function(e) {
-				
-				if(!validEntries())
-					e.preventDefault();
+	html, body {
+		background-image: -webkit-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For Chrome and Safari */
+		background-image:    -moz-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Fx (3.6 to 15) */
+		background-image:     -ms-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For pre-releases of IE 10*/
+		background-image:      -o-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Opera (11.1 to 12.0) */
+		background-image:         linear-gradient(to right, #a8a8a8, #e8e8e8, #fff); /* Standard syntax; must be last */
 
-			})
+		-webkit-background-clip: text;
+		background-clip: text;
+	}
 
-			function validEntries() {
-				if(isNullOrWhitespace("FirstName") || isNullOrWhitespace("MiddleInit") || isNullOrWhitespace("LastName") || isValidEmail("EmailAddress") || isNullOrWhitespace("UserName") || validPassword("Password","PasswordConfirm"))
-					return false;
-			}
-			function isValidPassword(passwordId1, passwordId2) {
-				if(isNullOrWhitespace(passwordId1))
-					return false;
-				if($("#" + passwordId1).val() === $("#" + passwordId2).val())
-					return false;
-				return true;
-			}
-			function isValidEmail(emailId) {
-				if(isNullOrWhitespace(emailId))
-					return false;
-				if($("#" + emailId).val().indexOf("@") >= 0)
-					return true;
-			}
-			function isNullOrWhitespace(id) {
-				$("#" + id).val() == null || $("#" + id).val() === "")
-					return true;
-				return false;
-			}
-		})
-	</script>
+		</style>
+		<script>
+$(document).ready(function(){
+	$("form[name='LoginForm']").submit(function(e) {
+
+		if(!validEntries())
+			e.preventDefault();
+
+	})
+
+	function validEntries() {
+		if(isNullOrWhitespace("FirstName") || isNullOrWhitespace("MiddleInit") || isNullOrWhitespace("LastName") || isValidEmail("EmailAddress") || isNullOrWhitespace("UserName") || validPassword("Password","PasswordConfirm"))
+			return false;
+	}
+	function isValidPassword(passwordId1, passwordId2) {
+		if(isNullOrWhitespace(passwordId1))
+			return false;
+		if($("#" + passwordId1).val() === $("#" + passwordId2).val())
+			return false;
+		return true;
+	}
+	function isValidEmail(emailId) {
+		if(isNullOrWhitespace(emailId))
+			return false;
+		if($("#" + emailId).val().indexOf("@") >= 0)
+			return true;
+	}
+	function isNullOrWhitespace(id) {
+		$("#" + id).val() == null || $("#" + id).val() === "")
+			return true;
+		return false;
+	}
+})
+		</script>
 	</head>
 	<body>
 		<div class="container container-fluid">
@@ -59,42 +71,42 @@
 				</div>
 			</div>
 			<div class="row">
-		<div class="col-xs-0 col-sm-2">
-		</div>
-		<form name="LoginForm" class="col-xs-12 col-sm-8" action="http://173.49.219.13:3656/Register/" method="POST">
-			<div class="row">
-				<input class="col-xs-12 col-sm-5" name="FirstName" id="FirstName" placeholder="First Name"/>
-				<input class="col-xs-12 col-sm-2" name="MiddleName" id="MiddleName" placeholder="Middle Name"/>
-				<input class="col-xs-12 col-sm-5" name="LastName" id="LastName" placeholder="Last Name"/>
-			</div>
-			<div class="row">
-				<input class="col-xs-12 col-sm-4" name="BirthMonth" id="BirthMonth" placeholder="Birth Month" />
-				<input class="col-xs-12 col-sm-4" name="BirthDay" id="BirthDay" placeholder="Birth Day" />
-				<input class="col-xs-12 col-sm-4" name="BirthYear" id="BirthYear"placeholder="Birth Year"/>
+				<div class="col-xs-0 col-sm-2">
+				</div>
+				<form name="LoginForm" class="col-xs-12 col-sm-8" action="http://173.49.219.13:3656/Register/" method="POST">
+					<div class="row">
+						<input class="col-xs-12 col-sm-5" name="FirstName" id="FirstName" placeholder="First Name"/>
+						<input class="col-xs-12 col-sm-2" name="MiddleName" id="MiddleName" placeholder="Middle Name"/>
+						<input class="col-xs-12 col-sm-5" name="LastName" id="LastName" placeholder="Last Name"/>
+					</div>
+					<div class="row">
+						<input class="col-xs-12 col-sm-4" name="BirthMonth" id="BirthMonth" placeholder="Birth Month" />
+						<input class="col-xs-12 col-sm-4" name="BirthDay" id="BirthDay" placeholder="Birth Day" />
+						<input class="col-xs-12 col-sm-4" name="BirthYear" id="BirthYear"placeholder="Birth Year"/>
 
-			</div>
-			<div class="row">
-					<input class="col-xs-12" name="EmailAddress" id="EmailAddress" type="text" placeholder="Email Address"/>
-			</div>
-			<div class="row">
-				<label for="UserName"></label>
-			<input class="col-xs-12" id="UserName" name="UserName" type="text" placeholder="Username"/>
-			</div>
-			<div class="row">
-				<label for="Password"></label>
-				<input class="col-xs-12" id="Password" name="Password" type="password" placeholder="Password" />
-			</div>
-			<div class="row">
-				<input class="col-xs-12" id="PasswordConfirm" name="PasswordConfirm" type="password" placeholder="Re-enter Password"/>
-			</div>
-			<div class="row">
-				<button class="col-xs-12" id="RegisterButton" type="submit" >Register</button>
-			</div>
-		</form>
+					</div>
+					<div class="row">
+						<input class="col-xs-12" name="EmailAddress" id="EmailAddress" type="text" placeholder="Email Address"/>
+					</div>
+					<div class="row">
+						<label for="UserName"></label>
+						<input class="col-xs-12" id="UserName" name="UserName" type="text" placeholder="Username"/>
+					</div>
+					<div class="row">
+						<label for="Password"></label>
+						<input class="col-xs-12" id="Password" name="Password" type="password" placeholder="Password" />
+					</div>
+					<div class="row">
+						<input class="col-xs-12" id="PasswordConfirm" name="PasswordConfirm" type="password" placeholder="Re-enter Password"/>
+					</div>
+					<div class="row">
+						<button class="col-xs-12" id="RegisterButton" type="submit" >Register</button>
+					</div>
+				</form>
 
-		<div class="col-xs-0 col-sm-2">
-		</div>
-		</div></div>
+				<div class="col-xs-0 col-sm-2">
+				</div>
+			</div></div>
 	</body>
 
 </html>

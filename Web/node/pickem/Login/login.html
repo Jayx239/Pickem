@@ -3,15 +3,26 @@
 <html>
 	<head>
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
-<style>
-	h1.title {
-		text-align: center;
-	}
+		<style>
+h1.title {
+	text-align: center;
+	color: rgb(0, 73, 83);
+}
 
 	button {
-		
+
 	}
-</style>
+	html, body {
+		background-image: -webkit-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For Chrome and Safari */
+		background-image:    -moz-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Fx (3.6 to 15) */
+		background-image:     -ms-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For pre-releases of IE 10*/
+		background-image:      -o-linear-gradient(left, #a8a8a8, #e8e8e8, #fff); /* For old Opera (11.1 to 12.0) */
+		background-image:         linear-gradient(to right, #a8a8a8, #e8e8e8, #fff); /* Standard syntax; must be last */
+
+		-webkit-background-clip: text;
+		background-clip: text;
+	}
+		</style>
 	</head>
 	<body>
 		<div class="container container-fluid">
@@ -25,26 +36,26 @@
 				</div>
 			</div>
 			<div class="row">
-		<div class="col-xs-0 col-sm-4">
-		</div>
-		<form name="LoginForm" class="col-xs-12 col-sm-4" action="http://173.49.219.13:3656/Login/" method="POST">
-			<div class="row">
-				<label for="UserName"></label>
-			<input class="col-xs-12" id="UserName" name="UserName" type="text" placeholder="Username"/>
-			</div>
-			<div class="row">
-				<label for="Password"></label>
-				<input class="col-xs-12" id="Password" name="Password" type="password" placeholder="Password" />
-			</div>
-			<div class="row">
-				<button class="col-xs-6" id="SignInButton" type="submit">Sign In</button>
-				<a class="col-xs-6" id="RegisterButton" href="/Register">Register</a>
-			</div>
-		</form>
+				<div class="col-xs-0 col-sm-4">
+				</div>
+				<form name="LoginForm" class="col-xs-12 col-sm-4" action="http://173.49.219.13:3656/Login/" method="POST">
+					<div class="row">
+						<label for="UserName"></label>
+						<input class="col-xs-12" id="UserName" name="UserName" type="text" placeholder="Username"/>
+					</div>
+					<div class="row">
+						<label for="Password"></label>
+						<input class="col-xs-12" id="Password" name="Password" type="password" placeholder="Password" />
+					</div>
+					<div class="row">
+						<button class="col-xs-6" id="SignInButton" type="submit">Sign In</button>
+						<a class="col-xs-6" id="RegisterButton" href="/Register">Register</a>
+					</div>
+				</form>
 
-		<div class="col-xs-0 col-sm-4">
-		</div>
-		</div></div>
+				<div class="col-xs-0 col-sm-4">
+				</div>
+			</div></div>
 	</body>
 
 </html>
