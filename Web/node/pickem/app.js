@@ -37,6 +37,10 @@ const logger = new (winston.Logger)({
 	]
 })
 
+app.set('views', './views')
+var ejs = require('ejs')
+app.set('view engine','ejs')
+
 app.use(bodyParser.urlencoded({extended: true}))
 app.use(cookieParser())
 port = 3656
@@ -88,26 +92,6 @@ app.use(function(req,res,next) {
 	next()
 })
 
-// Add headers
-/*app.use(function (req, res, next) {
-
-// Website you wish to allow to connect
-	res.setHeader('Access-Control-Allow-Origin', 'http://173.49.219.13');
-
-// Request methods you wish to allow
-	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-
-// Request headers you wish to allow
-	res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-// Set to true if you need the website to include cookies in the requests sent
-// to the API (e.g. in case you use sessions)
-	res.setHeader('Access-Control-Allow-Credentials', true);
-
-// Pass to next layer of middleware
-	next();
-});
-*/
 app.get('/',function(req,res) {
 	res.redirect('/Login/');
 })
@@ -155,7 +139,6 @@ app.post('/SendPicks/',requireLogon, function(req,res){
 			var gameKey = key
 			var winnerKey = req.body[key]
 			insertValidGamePick(ip,timestamp,week,userName,gameKey,winnerKey)
-			//insertPicks(ip,timestamp,week,userName,gameKey, winnerKey)
 		}
 		res.redirect('/Pickem/')
 	})
@@ -226,11 +209,13 @@ app.post("/GetPicks/",requireLogon,function(req,res) {
 })
 app.get("/GetRecentPicks/", requireLogon, function(req,res) {
 	if(req.query.UserName && req.query.Week){
+		logger.info("/GetRecentPicks: UserName: '" + req.user + "' IPAddress: '" + getIP(req) +"' Search for: Username: '" + req.query.UserName +"' Week: " + req.query.Week + "" )		
 		getRecentPicks(req.query.UserName, req.query.Week, res)
-		logger.info("/GetRecentPicks: UserName: '" + req.user + "' IPAddress: '" + getIP(req) +"' Search for: Username: '" + req.query.UserName +"' Week: " + req.query.Week + "" )
 	}
-	else
+	else{
 		logError('/GetRecentPicks/','Invalidy parameters',req.user,getIP(req))
+		res.send("err, invalid params")	
+	}
 })
 
 app.post("/GetRecentPicks/", requireLogon, function(req,res) {
@@ -242,7 +227,7 @@ function getRecentPicks(UserName, Week, res) {
 
 	sqlConn.query("USE pickem;", function(err,result) {
 		if(err)
-			logger.error("Err: " + err + " selecting using table");
+			logError("GetRecentPicks()", err, UserName);
 		var sql = "SELECT p.TimeStamp, p.Week, p.PickID, p.GameKey, p.WinnerKey, p.UserName FROM RecentPicks as rp INNER JOIN Picks as p ON p.PickID = rp.PickID WHERE rp.UserName='" + UserName + "' AND rp.Week=" + Week + ";"
 		sqlConn.query(sql,function(err,result){
 			if(err)
@@ -250,7 +235,7 @@ function getRecentPicks(UserName, Week, res) {
 
 			logger.info("getRecentPicks: Recent picks retrieved UserName: '" + UserName + "' Week=" + Week)
 			res.send(result);
-			return result;
+			
 		})
 	})
 }
@@ -271,13 +256,24 @@ app.get("/GetAllUsers/", function(req,res) {
 
 app.get('/Login/',function(req,res) {
 	logger.info("Visitor on Login page - IPAddress: " + getIP(req))
-	res.sendFile('/Login/login.html', {root: __dirname })
+	res.render("login",{errors: ""})
 })
 
 app.get('/Register/',function(req,res) {
 	logger.info('Visitor on Register page IPAddress: ' + getIP(req))
-	res.sendFile('/Register/register.html', {root: __dirname })
+	res.render("register",{errors: ""});
 })
+
+app.get('/Register/Success/',function(req,res) {
+	logger.info('Visitor on Register page IPAddress: ' + getIP(req))
+	res.sendFile('/Register/registersuccess.html', {root: __dirname })
+})
+
+app.get('/Register/Fail/',function(req,res) {
+	logger.info('Visitor on Register page IPAddress: ' + getIP(req))
+	res.sendFile('/Register/registerfail.html', {root: __dirname })
+})
+
 
 app.get('/Pickem/Picks/',requireAdmin,function(req,res) {
 	logger.info("/Pickem/Picks/: User viewing picks - UserName: " + req.user + " IPAddress: " + getIP(req))
@@ -286,37 +282,45 @@ app.get('/Pickem/Picks/',requireAdmin,function(req,res) {
 })
 
 app.post("/Register/", function(req,res) {
-	if(!registerUser(req.body)) {
-		logError('/Register/',"Registration Error",req.UserName, getIP(req))
-		res.redirect('/Register/')
-	}
-	else {
-		logger.info("/Register/ : " + req.UserName + " Registered successfully on IPAddress= " + getIP(req))
-		res.redirect('/')
-	}
+	registerUser(req,res)
 })
 
-function registerUser(details) {
+function registerUser(req, res) {
+	var details = req.body
 	logger.info("Registering user: UserID: " + details.UserName)
 	sqlConn.query("USE pickem;",function(err,result){
+		var invalidCreds = false
 		if(err)
 			logError("registerUser() selecting db", err,details.UserName)
-		if(!validatePassword(details.Password,details.PasswordConfirm))
-			return false
-
+		var responseModel = new Object()
+		responseModel.errors = []
+		if(!validatePassword(details.Password,details.PasswordConfirm)) {
+			invalidCreds = true
+			responseModel.errors.push("Invalid Password")
+			logError("registerUser()","Invalid Password",details.UserName)
+		}
 		if(!isValidUserName(details.UserName)) {
-			logger.info("registerUser()", "Invalid username", details.UserName)
-			return false
+			logError("registerUser()", "Invalid username", details.UserName)
+			responseModel.errors.push("Invalid Username")
+			invalidCreds = true
 		}
 		logger.info("registerUser() - Valid username")
 		if(!isValidEmail(details.EmailAddress)) {
-			logError("registerUser()", "invalid email address", details.EmailAddress)	
-			return false
+			logError("registerUser()", "invalid email address", details.EmailAddress)
+			responseModel.errors.push("Invalid Email Address")
+			invalidCreds = true
 		}
 		logger.info("registerUser(): Valid email address")
 		if(isNullOrWhitespace(details.FirstName) || isNullOrWhitespace(details.LastName)){
 			logError("registerUser()","null name","First: " + details.FirstName + " Last: "  + details.LastName);
-			return false
+			responseModel.errors.push("Missing name: First and Last name are required")
+			invalidCreds = true
+		}
+		if(invalidCreds) {
+			logError("/Register/","Registration Failed",details.UserName, getIP(req))
+			res.render("register.ejs",responseModel)
+			//res.redirect("/Register/Fail/")
+			return
 		}
 		logger.info("registerUser(): Valid name")
 		logger.info("registerUser(): Creds Verified")
@@ -324,15 +328,17 @@ function registerUser(details) {
 
 		sqlConn.query(sql, function(err,result) {
 			if(err) {
-				logError('registerUser()',err,details.UserName)
-				return false
+				logError('registerUser()',err,details.UserName, getIP(req))
+				res.redirect("/Register/Fail/")
+				return
 			}
 			sql = "SELECT UserID FROM Users WHERE UserName='" + details.UserName + "';"
 			logger.info('User: ' + details.UserName + ' info added')
 			sqlConn.query(sql,function(err,result) {
 				if(err) {
-					logError('registerUser()',err, details.UserName)
-					return false
+					logError('registerUser()',err, details.UserName, getIP(req))
+					res.redirect("/Register/Fail/")
+					return
 				}
 				var creds = saltHashPassword(details.Password)
 
@@ -340,12 +346,14 @@ function registerUser(details) {
 				logger.info('Hashed Credentials')
 				sqlConn.query(sql, function(err,result) {
 					if(err) {
-						logError('registerUser()',err, details.UserName)
-						return false
+						logError('registerUser()',err, details.UserName,getIP(req))
+						res.redirect("/Register/Fail/")
+						return
 					}
 					logger.info("Hashed Crendtials added\nSuccessful registration")
 					logger.info("User registered successfully Username: " + details.UserName)
-					return true
+					res.redirect("/Register/Success/")
+
 				})
 			})
 		})
@@ -428,9 +436,10 @@ app.get('/Pickem/', requireLogon, function(req,res){
 			res.sendFile('/Pickem/pickem.html', {root: __dirname })
 		}
 	}
-	else
+	else {
+		logger.info("/Pickem/: User on pickem page Username: " + req.user + " IPAddress: " + getIP(req))
 		res.sendFile('/Pickem/pickem.html', {root: __dirname })
-
+	}
 })
 
 app.get("/Logout/", function(req,res) {
@@ -443,6 +452,8 @@ app.get("/Logout/", function(req,res) {
 })
 
 app.post("/Login/",function(req,res) {
+	var responseModel = new Object()
+	responseModel.errors = []
 	logger.info('/Login/ - User attempting logon - UserName=\'' + req.body.UserName + '\' IPAddress= ' + getIP(req) )
 	if(!isNullOrWhitespace(req.body.UserName) && !isNullOrWhitespace(req.body.Password)) {	
 
@@ -464,14 +475,17 @@ app.post("/Login/",function(req,res) {
 				}
 				else {
 					logError('/Login/','Invalid credentials',req.body.UserName, getIP(req))
-					res.redirect('/')
+					responseModel.errors.push("Invalid Credentials")
+					res.render("login",responseModel)
 				}
 			})
 		})
 	}
 	else {
 		logError('/Login/', 'Invalid credentials', req.body.UserName, getIP(req))
-		res.redirect('/')
+		responseModel.errors.push("Invalid Credentials")
+		res.render("login",responseModel)	
+		//res.redirect('/')
 	}
 
 })
